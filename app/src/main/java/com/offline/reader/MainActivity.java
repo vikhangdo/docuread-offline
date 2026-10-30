@@ -88,8 +88,8 @@ public class MainActivity extends AppCompatActivity {
         settings.setBuiltInZoomControls(true);
         settings.setDisplayZoomControls(false);
         settings.setTextZoom(100);
-        settings.setInitialScale(0); // Let viewport meta control initial scale
 
+        webView.setInitialScale(0); // Let viewport meta control initial scale
         webView.setScrollBarStyle(WebView.SCROLLBARS_OUTSIDE_OVERLAY);
         webView.setScrollbarFadingEnabled(true);
         webView.setOverScrollMode(WebView.OVER_SCROLL_NEVER);
