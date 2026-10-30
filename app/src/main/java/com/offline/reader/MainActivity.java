@@ -8,6 +8,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.provider.OpenableColumns;
 import android.util.Base64;
+import android.util.Log;
 import android.webkit.JavascriptInterface;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
@@ -22,12 +23,18 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
+import java.util.Arrays;
 
 public class MainActivity extends AppCompatActivity {
 
+    private static final String TAG = "DocuRead";
     private WebView webView;
     private ValueCallback<Uri[]> filePathCallback;
     private ActivityResultLauncher<Intent> filePickerLauncher;
+
+    private byte[] currentFileBytes = null;
+    private String currentFileName = "";
+    private String currentMimeType = "";
 
     @SuppressLint({"SetJavaScriptEnabled"})
     @Override
@@ -38,26 +45,19 @@ public class MainActivity extends AppCompatActivity {
         webView = findViewById(R.id.webview);
         initWebSettings();
 
-        // Register file picker launcher for JavaScript bridge and WebChromeClient
+        // Register file picker launcher
         filePickerLauncher = registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(),
             result -> {
                 if (result.getResultCode() == Activity.RESULT_OK && result.getData() != null) {
                     Uri uri = result.getData().getData();
                     if (uri != null) {
-                        // If file was requested via HTML <input type="file">
-                        if (filePathCallback != null) {
-                            filePathCallback.onReceiveValue(new Uri[]{uri});
-                            filePathCallback = null;
-                        }
-                        // Also load directly into native bridge
                         loadDocumentFromUri(uri);
                     }
-                } else {
-                    if (filePathCallback != null) {
-                        filePathCallback.onReceiveValue(null);
-                        filePathCallback = null;
-                    }
+                }
+                if (filePathCallback != null) {
+                    filePathCallback.onReceiveValue(null);
+                    filePathCallback = null;
                 }
             }
         );
@@ -65,7 +65,7 @@ public class MainActivity extends AppCompatActivity {
         // Native JavaScript Interface
         webView.addJavascriptInterface(new WebAppInterface(), "AndroidBridge");
 
-        // Load local offline assets
+        // Load local offline assets directly
         webView.loadUrl("file:///android_asset/index.html");
 
         // Handle intent if launched by clicking a PDF or DOCX file from file manager
@@ -91,7 +91,6 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
-                // Handle pending intent if any
                 handleIncomingIntent(getIntent());
             }
         });
@@ -108,7 +107,11 @@ public class MainActivity extends AppCompatActivity {
                 Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
                 intent.addCategory(Intent.CATEGORY_OPENABLE);
                 intent.setType("*/*");
-                String[] mimeTypes = {"application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/msword"};
+                String[] mimeTypes = {
+                    "application/pdf", 
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document", 
+                    "application/msword"
+                };
                 intent.putExtra(Intent.EXTRA_MIME_TYPES, mimeTypes);
                 filePickerLauncher.launch(intent);
                 return true;
@@ -135,35 +138,36 @@ public class MainActivity extends AppCompatActivity {
 
     public void loadDocumentFromUri(Uri uri) {
         try {
-            String fileName = getFileName(uri);
-            String mimeType = getContentResolver().getType(uri);
+            currentFileName = getFileName(uri);
+            currentMimeType = getContentResolver().getType(uri);
+            if (currentMimeType == null) currentMimeType = "";
 
             InputStream inputStream = getContentResolver().openInputStream(uri);
             if (inputStream == null) {
-                Toast.makeText(this, "Không thể mở tệp tin!", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Không thể đọc tệp!", Toast.LENGTH_SHORT).show();
                 return;
             }
 
             ByteArrayOutputStream byteBuffer = new ByteArrayOutputStream();
-            int bufferSize = 16384;
-            byte[] buffer = new byte[bufferSize];
+            byte[] buffer = new byte[32768];
             int len;
             while ((len = inputStream.read(buffer)) != -1) {
                 byteBuffer.write(buffer, 0, len);
             }
-            byte[] rawBytes = byteBuffer.toByteArray();
+            currentFileBytes = byteBuffer.toByteArray();
             inputStream.close();
 
-            String base64Data = Base64.encodeToString(rawBytes, Base64.NO_WRAP);
+            int totalSize = currentFileBytes.length;
+            Log.d(TAG, "Loaded file " + currentFileName + ", size: " + totalSize);
 
-            // Pass base64 data to web reader engine
-            String jsCode = String.format("window.openDocumentFromNative('%s', '%s', '%s');",
-                    base64Data, escapeJsString(fileName), escapeJsString(mimeType != null ? mimeType : ""));
+            // Notify JavaScript that file is ready to pull via chunked bridge (avoids 1MB Binder crash)
+            String jsCode = String.format("if (window.onNativeDocumentReady) { window.onNativeDocumentReady('%s', '%s', %d); }",
+                    escapeJsString(currentFileName), escapeJsString(currentMimeType), totalSize);
 
             runOnUiThread(() -> webView.evaluateJavascript(jsCode, null));
 
         } catch (Exception e) {
-            e.printStackTrace();
+            Log.e(TAG, "Error loading document", e);
             Toast.makeText(this, "Lỗi mở tệp: " + e.getMessage(), Toast.LENGTH_LONG).show();
         }
     }
@@ -190,8 +194,9 @@ public class MainActivity extends AppCompatActivity {
         if (str == null) return "";
         return str.replace("\\", "\\\\")
                   .replace("'", "\\'")
-                  .replace("\n", "\\n")
-                  .replace("\r", "\\r");
+                  .replace("\"", "\\\"")
+                  .replace("\n", " ")
+                  .replace("\r", " ");
     }
 
     @Override
@@ -209,9 +214,33 @@ public class MainActivity extends AppCompatActivity {
             Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
             intent.addCategory(Intent.CATEGORY_OPENABLE);
             intent.setType("*/*");
-            String[] mimeTypes = {"application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/msword"};
+            String[] mimeTypes = {
+                "application/pdf", 
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document", 
+                "application/msword"
+            };
             intent.putExtra(Intent.EXTRA_MIME_TYPES, mimeTypes);
             filePickerLauncher.launch(intent);
+        }
+
+        @JavascriptInterface
+        public int getFileSize() {
+            return currentFileBytes != null ? currentFileBytes.length : 0;
+        }
+
+        @JavascriptInterface
+        public String getFileName() {
+            return currentFileName;
+        }
+
+        @JavascriptInterface
+        public String getChunk(int offset, int length) {
+            if (currentFileBytes == null || offset < 0 || offset >= currentFileBytes.length) {
+                return "";
+            }
+            int end = Math.min(offset + length, currentFileBytes.length);
+            byte[] chunk = Arrays.copyOfRange(currentFileBytes, offset, end);
+            return Base64.encodeToString(chunk, Base64.NO_WRAP);
         }
 
         @JavascriptInterface
@@ -221,8 +250,13 @@ public class MainActivity extends AppCompatActivity {
 
         @JavascriptInterface
         public void onAppReady() {
-            // Check if there was an intent to open
-            handleIncomingIntent(getIntent());
+            if (currentFileBytes != null && currentFileBytes.length > 0) {
+                String jsCode = String.format("if (window.onNativeDocumentReady) { window.onNativeDocumentReady('%s', '%s', %d); }",
+                        escapeJsString(currentFileName), escapeJsString(currentMimeType), currentFileBytes.length);
+                runOnUiThread(() -> webView.evaluateJavascript(jsCode, null));
+            } else {
+                handleIncomingIntent(getIntent());
+            }
         }
     }
 }

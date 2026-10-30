@@ -4,7 +4,11 @@
 
 // Configure PDF.js worker to local bundled script
 if (window.pdfjsLib) {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = 'libs/pdf.worker.min.js';
+  try {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'libs/pdf.worker.min.js';
+  } catch (e) {
+    console.warn('PDF.js worker initialization:', e);
+  }
 }
 
 // App State
@@ -21,67 +25,72 @@ const state = {
 };
 
 // DOM Elements
-const fileInput = document.getElementById('file-input');
-const emptyState = document.getElementById('empty-state');
-const loadingOverlay = document.getElementById('loading-overlay');
-const loadingText = document.getElementById('loading-text');
-const docViewport = document.getElementById('document-viewport');
-const pdfContainer = document.getElementById('pdf-container');
-const docxContainer = document.getElementById('docx-container');
-const docControls = document.getElementById('doc-controls');
-const mobileNavBar = document.getElementById('mobile-nav-bar');
-
-// Pagination UI
-const prevPageBtn = document.getElementById('prev-page-btn');
-const nextPageBtn = document.getElementById('next-page-btn');
-const pageNumInput = document.getElementById('page-num-input');
-const pageCountSpan = document.getElementById('page-count-span');
-
-// Mobile Pagination UI
-const mobPrevPageBtn = document.getElementById('mob-prev-page');
-const mobNextPageBtn = document.getElementById('mob-next-page');
-const mobPageIndicator = document.getElementById('mob-page-indicator');
-
-// Zoom UI
-const zoomInBtn = document.getElementById('zoom-in-btn');
-const zoomOutBtn = document.getElementById('zoom-out-btn');
-const zoomResetBtn = document.getElementById('zoom-reset-btn');
-const zoomLevelSpan = document.getElementById('zoom-level-span');
-
-// Header Actions
-const openFileBtn = document.getElementById('open-file-btn');
-const fabOpenFileBtn = document.getElementById('fab-open-file');
-const themeSelect = document.getElementById('theme-select');
-const btnSampleDocx = document.getElementById('btn-sample-docx');
-const btnSamplePdf = document.getElementById('btn-sample-pdf');
-const dropzone = document.getElementById('dropzone');
+let fileInput, emptyState, loadingOverlay, loadingText;
+let docViewport, pdfContainer, docxContainer, docControls, mobileNavBar;
+let prevPageBtn, nextPageBtn, pageNumInput, pageCountSpan;
+let mobPrevPageBtn, mobNextPageBtn, mobPageIndicator;
+let zoomInBtn, zoomOutBtn, zoomResetBtn, zoomLevelSpan;
+let openFileBtn, fabOpenFileBtn, themeSelect, btnSampleDocx, btnSamplePdf, dropzone;
 
 // Initialize Event Listeners
 function init() {
+  fileInput = document.getElementById('file-input');
+  emptyState = document.getElementById('empty-state');
+  loadingOverlay = document.getElementById('loading-overlay');
+  loadingText = document.getElementById('loading-text');
+  docViewport = document.getElementById('document-viewport');
+  pdfContainer = document.getElementById('pdf-container');
+  docxContainer = document.getElementById('docx-container');
+  docControls = document.getElementById('doc-controls');
+  mobileNavBar = document.getElementById('mobile-nav-bar');
+
+  prevPageBtn = document.getElementById('prev-page-btn');
+  nextPageBtn = document.getElementById('next-page-btn');
+  pageNumInput = document.getElementById('page-num-input');
+  pageCountSpan = document.getElementById('page-count-span');
+
+  mobPrevPageBtn = document.getElementById('mob-prev-page');
+  mobNextPageBtn = document.getElementById('mob-next-page');
+  mobPageIndicator = document.getElementById('mob-page-indicator');
+
+  zoomInBtn = document.getElementById('zoom-in-btn');
+  zoomOutBtn = document.getElementById('zoom-out-btn');
+  zoomResetBtn = document.getElementById('zoom-reset-btn');
+  zoomLevelSpan = document.getElementById('zoom-level-span');
+
+  openFileBtn = document.getElementById('open-file-btn');
+  fabOpenFileBtn = document.getElementById('fab-open-file');
+  themeSelect = document.getElementById('theme-select');
+  btnSampleDocx = document.getElementById('btn-sample-docx');
+  btnSamplePdf = document.getElementById('btn-sample-pdf');
+  dropzone = document.getElementById('dropzone');
+
   // Theme change
-  themeSelect.addEventListener('change', (e) => {
-    setTheme(e.target.value);
-  });
+  if (themeSelect) {
+    themeSelect.addEventListener('change', (e) => setTheme(e.target.value));
+  }
 
   // File Picker Trigger
   const triggerPicker = () => {
     if (window.AndroidBridge && typeof window.AndroidBridge.pickFile === 'function') {
       window.AndroidBridge.pickFile();
-    } else {
+    } else if (fileInput) {
       fileInput.click();
     }
   };
 
-  openFileBtn.addEventListener('click', triggerPicker);
+  if (openFileBtn) openFileBtn.addEventListener('click', triggerPicker);
   if (fabOpenFileBtn) fabOpenFileBtn.addEventListener('click', triggerPicker);
   if (dropzone) dropzone.addEventListener('click', triggerPicker);
 
-  fileInput.addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      loadFile(file);
-    }
-  });
+  if (fileInput) {
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        loadFile(file);
+      }
+    });
+  }
 
   // Drag and Drop
   if (dropzone) {
@@ -108,24 +117,26 @@ function init() {
   }
 
   // Pagination events
-  prevPageBtn.addEventListener('click', () => changePage(-1));
-  nextPageBtn.addEventListener('click', () => changePage(1));
+  if (prevPageBtn) prevPageBtn.addEventListener('click', () => changePage(-1));
+  if (nextPageBtn) nextPageBtn.addEventListener('click', () => changePage(1));
   if (mobPrevPageBtn) mobPrevPageBtn.addEventListener('click', () => changePage(-1));
   if (mobNextPageBtn) mobNextPageBtn.addEventListener('click', () => changePage(1));
 
-  pageNumInput.addEventListener('change', (e) => {
-    const page = parseInt(e.target.value, 10);
-    if (!isNaN(page) && page >= 1 && page <= state.totalPages) {
-      goToPage(page);
-    } else {
-      pageNumInput.value = state.currentPage;
-    }
-  });
+  if (pageNumInput) {
+    pageNumInput.addEventListener('change', (e) => {
+      const page = parseInt(e.target.value, 10);
+      if (!isNaN(page) && page >= 1 && page <= state.totalPages) {
+        goToPage(page);
+      } else {
+        pageNumInput.value = state.currentPage;
+      }
+    });
+  }
 
   // Zoom events
-  zoomInBtn.addEventListener('click', () => changeZoom(0.15));
-  zoomOutBtn.addEventListener('click', () => changeZoom(-0.15));
-  zoomResetBtn.addEventListener('click', () => setZoom(1.0));
+  if (zoomInBtn) zoomInBtn.addEventListener('click', () => changeZoom(0.15));
+  if (zoomOutBtn) zoomOutBtn.addEventListener('click', () => changeZoom(-0.15));
+  if (zoomResetBtn) zoomResetBtn.addEventListener('click', () => setZoom(1.0));
 
   // Quick Sample Tests
   if (btnSampleDocx) {
@@ -142,7 +153,7 @@ function init() {
     });
   }
 
-  // Setup Keyboard Shortcuts
+  // Keyboard Shortcuts
   window.addEventListener('keydown', (e) => {
     if (e.target.tagName === 'INPUT') return;
     if (e.key === 'ArrowRight' || e.key === 'PageDown') {
@@ -171,18 +182,18 @@ function setTheme(theme) {
 
 // Show / Hide Loading
 function showLoading(msg = 'Đang tải tài liệu...') {
-  loadingText.textContent = msg;
-  loadingOverlay.classList.remove('hidden');
+  if (loadingText) loadingText.textContent = msg;
+  if (loadingOverlay) loadingOverlay.classList.remove('hidden');
 }
 
 function hideLoading() {
-  loadingOverlay.classList.add('hidden');
+  if (loadingOverlay) loadingOverlay.classList.add('hidden');
 }
 
 // Load a local file from disk/input
 function loadFile(file) {
   state.currentFile = file;
-  const fileName = file.name.toLowerCase();
+  const fileName = (file.name || '').toLowerCase();
   
   showLoading(`Đang mở ${file.name}...`);
   
@@ -191,11 +202,22 @@ function loadFile(file) {
     const arrayBuffer = e.target.result;
     if (fileName.endsWith('.pdf')) {
       renderPdf(arrayBuffer);
-    } else if (fileName.endsWith('.docx') || fileName.endsWith('.doc')) {
+    } else if (fileName.endsWith('.docx')) {
       renderDocx(arrayBuffer);
-    } else {
+    } else if (fileName.endsWith('.doc')) {
       hideLoading();
-      alert('Định dạng tệp không được hỗ trợ. Vui lòng chọn tệp .pdf hoặc .docx');
+      alert('Tệp .doc là định dạng Word cũ. Vui lòng lưu thành định dạng .docx hoặc .pdf để đọc offline.');
+    } else {
+      // Try detecting from magic bytes
+      const header = new Uint8Array(arrayBuffer.slice(0, 5));
+      if (header[0] === 0x25 && header[1] === 0x50 && header[2] === 0x44 && header[3] === 0x46) { // %PDF
+        renderPdf(arrayBuffer);
+      } else if (header[0] === 0x50 && header[1] === 0x4B) { // PK (ZIP/DOCX)
+        renderDocx(arrayBuffer);
+      } else {
+        hideLoading();
+        alert('Định dạng tệp không được hỗ trợ. Vui lòng chọn tệp .pdf hoặc .docx');
+      }
     }
   };
   reader.onerror = function() {
@@ -228,12 +250,20 @@ async function loadSampleFile(url, type) {
 // ========================
 async function renderPdf(arrayBuffer) {
   state.fileType = 'pdf';
-  docxContainer.innerHTML = '';
-  docxContainer.style.display = 'none';
-  pdfContainer.style.display = 'flex';
-  pdfContainer.innerHTML = '';
+  if (docxContainer) {
+    docxContainer.innerHTML = '';
+    docxContainer.style.display = 'none';
+  }
+  if (pdfContainer) {
+    pdfContainer.style.display = 'flex';
+    pdfContainer.innerHTML = '';
+  }
 
   try {
+    if (!window.pdfjsLib) {
+      throw new Error('Thư viện PDF.js chưa được tải!');
+    }
+
     const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
     state.pdfDoc = await loadingTask.promise;
     state.totalPages = state.pdfDoc.numPages;
@@ -241,8 +271,10 @@ async function renderPdf(arrayBuffer) {
     state.zoomScale = 1.0;
 
     // Show controls
-    emptyState.classList.add('hidden');
-    docControls.classList.add('visible');
+    if (emptyState) emptyState.classList.add('hidden');
+    if (docControls) docControls.classList.add('visible');
+    const pageNavEl = document.querySelector('.page-nav');
+    if (pageNavEl) pageNavEl.style.display = 'flex';
     if (mobileNavBar) mobileNavBar.classList.add('visible');
     
     updatePaginationUI();
@@ -259,12 +291,12 @@ async function renderPdf(arrayBuffer) {
 
 async function renderPdfPage(num) {
   state.pageRendering = true;
+  if (!pdfContainer) return;
   pdfContainer.innerHTML = '';
 
   try {
     const page = await state.pdfDoc.getPage(num);
     
-    // Scale for crisp high-DPI rendering
     const pixelRatio = window.devicePixelRatio || 1;
     const viewport = page.getViewport({ scale: state.zoomScale });
 
@@ -324,14 +356,14 @@ function goToPage(num) {
   state.currentPage = num;
   updatePaginationUI();
   queueRenderPage(num);
-  docViewport.scrollTop = 0;
+  if (docViewport) docViewport.scrollTop = 0;
 }
 
 function updatePaginationUI() {
-  pageNumInput.value = state.currentPage;
-  pageCountSpan.textContent = `/ ${state.totalPages}`;
-  prevPageBtn.disabled = (state.currentPage <= 1);
-  nextPageBtn.disabled = (state.currentPage >= state.totalPages);
+  if (pageNumInput) pageNumInput.value = state.currentPage;
+  if (pageCountSpan) pageCountSpan.textContent = `/ ${state.totalPages}`;
+  if (prevPageBtn) prevPageBtn.disabled = (state.currentPage <= 1);
+  if (nextPageBtn) nextPageBtn.disabled = (state.currentPage >= state.totalPages);
 
   if (mobPageIndicator) {
     mobPageIndicator.textContent = `${state.currentPage} / ${state.totalPages}`;
@@ -345,22 +377,26 @@ function updatePaginationUI() {
 // ========================
 async function renderDocx(arrayBuffer) {
   state.fileType = 'docx';
-  pdfContainer.innerHTML = '';
-  pdfContainer.style.display = 'none';
-  docxContainer.style.display = 'block';
-  docxContainer.innerHTML = '';
+  if (pdfContainer) {
+    pdfContainer.innerHTML = '';
+    pdfContainer.style.display = 'none';
+  }
+  if (docxContainer) {
+    docxContainer.style.display = 'block';
+    docxContainer.innerHTML = '';
+  }
 
   try {
     if (!window.docx) {
       throw new Error('Thư viện docx-preview chưa sẵn sàng');
     }
 
-    emptyState.classList.add('hidden');
-    docControls.classList.add('visible');
-    if (mobileNavBar) mobileNavBar.classList.remove('visible'); // DOCX is continuous scroll
+    if (emptyState) emptyState.classList.add('hidden');
+    if (docControls) docControls.classList.add('visible');
+    if (mobileNavBar) mobileNavBar.classList.remove('visible');
 
-    // Hide page navigation controls for DOCX since it flows continuously
-    document.querySelector('.page-nav').style.display = 'none';
+    const pageNavEl = document.querySelector('.page-nav');
+    if (pageNavEl) pageNavEl.style.display = 'none';
 
     state.zoomScale = 1.0;
     updateZoomUI();
@@ -401,21 +437,56 @@ function setZoom(newScale) {
 
   if (state.fileType === 'pdf') {
     queueRenderPage(state.currentPage);
-  } else if (state.fileType === 'docx') {
+  } else if (state.fileType === 'docx' && docxContainer) {
     docxContainer.style.transform = `scale(${state.zoomScale})`;
   }
 }
 
 function updateZoomUI() {
   const percent = Math.round(state.zoomScale * 100) + '%';
-  zoomLevelSpan.textContent = percent;
+  if (zoomLevelSpan) zoomLevelSpan.textContent = percent;
 }
 
 // ========================
 // ANDROID NATIVE BRIDGE
 // ========================
 function setupAndroidBridge() {
-  // Method called from Android native code to open document by base64
+  // New Chunked Bridge: Transfers files of any size without Binder 1MB overflow
+  window.onNativeDocumentReady = function(fileName, mimeType, totalSize) {
+    showLoading(`Đang mở ${fileName} (${Math.round(totalSize / 1024)} KB)...`);
+    
+    setTimeout(() => {
+      try {
+        const chunkSize = 256 * 1024;
+        const fullBytes = new Uint8Array(totalSize);
+        let offset = 0;
+
+        while (offset < totalSize) {
+          const len = Math.min(chunkSize, totalSize - offset);
+          const base64Chunk = window.AndroidBridge.getChunk(offset, len);
+          const binaryStr = window.atob(base64Chunk);
+          for (let i = 0; i < binaryStr.length; i++) {
+            fullBytes[offset + i] = binaryStr.charCodeAt(i);
+          }
+          offset += len;
+        }
+
+        const buffer = fullBytes.buffer;
+        const lowerName = (fileName || '').toLowerCase();
+        if (lowerName.endsWith('.pdf') || mimeType === 'application/pdf') {
+          renderPdf(buffer);
+        } else {
+          renderDocx(buffer);
+        }
+      } catch (err) {
+        hideLoading();
+        console.error('Bridge chunk read error:', err);
+        alert('Lỗi nạp tệp từ Android: ' + err.message);
+      }
+    }, 20);
+  };
+
+  // Legacy direct base64 fallback
   window.openDocumentFromNative = function(base64Data, fileName, mimeType) {
     showLoading(`Đang mở ${fileName}...`);
     try {
@@ -446,4 +517,8 @@ function setupAndroidBridge() {
 }
 
 // Bootstrap when DOM is loaded
-document.addEventListener('DOMContentLoaded', init);
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}

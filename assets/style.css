@@ -310,6 +310,7 @@ body {
 .empty-state.hidden {
   opacity: 0;
   pointer-events: none;
+  display: none !important;
 }
 
 .welcome-card {
