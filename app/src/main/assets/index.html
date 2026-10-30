@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+  <title>DocuRead Offline - Đọc File PDF & DOCX Không Cần Internet</title>
+  <meta name="description" content="Ứng dụng APK Android và Web đọc tài liệu PDF và Word DOCX hoàn toàn Offline, không cần kết nối mạng.">
+  <link rel="stylesheet" href="assets/style.css">
+  
+  <!-- Thư viện Offline hoàn toàn cục bộ (Không cần Internet) -->
+  <script src="assets/libs/jszip.min.js"></script>
+  <script src="assets/libs/docx-preview.min.js"></script>
+  <script src="assets/libs/pdf.min.js"></script>
+</head>
+<body class="theme-dark">
+
+  <!-- Header Toolbar -->
+  <header class="app-header">
+    <div class="brand-section">
+      <div class="app-icon" id="app-logo">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+        </svg>
+      </div>
+      <div class="brand-text">
+        <h1 id="app-title">DocuRead</h1>
+        <span class="offline-pill" id="offline-badge">⚡ 100% Offline</span>
+      </div>
+    </div>
+
+    <!-- Center Document Controls (Hidden until file opened) -->
+    <div class="doc-controls" id="doc-controls">
+      <!-- PDF Page Navigation -->
+      <div class="page-nav">
+        <button class="btn-icon" id="prev-page-btn" title="Trang trước" aria-label="Trang trước">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+        </button>
+        <div class="page-indicator">
+          <input type="number" id="page-num-input" value="1" min="1" aria-label="Trang hiện tại">
+          <span id="page-count-span">/ 1</span>
+        </div>
+        <button class="btn-icon" id="next-page-btn" title="Trang sau" aria-label="Trang sau">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </button>
+      </div>
+
+      <!-- Zoom Controls -->
+      <div class="zoom-controls">
+        <button class="btn-icon" id="zoom-out-btn" title="Thu nhỏ" aria-label="Thu nhỏ">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>
+        </button>
+        <span class="zoom-level" id="zoom-level-span">100%</span>
+        <button class="btn-icon" id="zoom-in-btn" title="Phóng to" aria-label="Phóng to">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>
+        </button>
+        <button class="btn-icon" id="zoom-reset-btn" title="Kích thước gốc" aria-label="Đặt lại thu phóng">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Right Actions -->
+    <div class="header-actions">
+      <!-- Theme Switcher -->
+      <select class="theme-dropdown" id="theme-select" title="Đổi giao diện" aria-label="Chọn giao diện">
+        <option value="dark">🌙 Ban đêm</option>
+        <option value="light">☀️ Ban ngày</option>
+        <option value="sepia">📜 Giấy cổ</option>
+      </select>
+
+      <!-- Main Open File Button -->
+      <button class="btn-primary" id="open-file-btn" aria-label="Mở tệp tin">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+        </svg>
+        <span class="header-btn-text">Mở Tệp</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Hidden Native File Input -->
+  <input type="file" id="file-input" accept=".pdf,.docx,.doc,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" style="display: none;">
+
+  <!-- Main Viewport -->
+  <main class="main-viewport" id="main-viewport">
+    
+    <!-- Empty State / Welcome Screen -->
+    <div class="empty-state" id="empty-state">
+      <div class="welcome-card">
+        <div class="welcome-icon-group">
+          <div class="file-type-badge pdf">
+            <span>PDF</span>
+          </div>
+          <div class="file-type-badge docx">
+            <span>DOCX</span>
+          </div>
+        </div>
+
+        <h2>Trình Đọc Tài Liệu Offline</h2>
+        <p class="welcome-desc">Đọc tài liệu PDF và Word hoàn toàn không cần kết nối mạng. Bảo mật tuyệt đối, dữ liệu không bao giờ rời khỏi thiết bị của bạn.</p>
+
+        <!-- Dropzone / Picker -->
+        <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="Vùng kéo thả hoặc chọn tệp tin">
+          <div class="dropzone-icon">
+            <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="17 8 12 3 7 8"></polyline>
+              <line x1="12" y1="3" x2="12" y2="15"></line>
+            </svg>
+          </div>
+          <div class="dropzone-text">Bấm vào đây để chọn tệp tin</div>
+          <div class="dropzone-hint">Hỗ trợ tệp định dạng .PDF, .DOCX hoặc kéo thả trực tiếp</div>
+        </div>
+
+        <!-- Sample Buttons to Test Immediately -->
+        <div class="sample-actions">
+          <div class="sample-title">⚡ Hoặc thử nghiệm ngay với file mẫu có sẵn:</div>
+          <button class="btn-outline" id="btn-sample-docx" type="button">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+            Mở mẫu Word (.docx)
+          </button>
+          <button class="btn-outline" id="btn-sample-pdf" type="button">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+            Mở mẫu PDF (.pdf)
+          </button>
+        </div>
+
+        <!-- Feature List -->
+        <div class="features-grid">
+          <div class="feature-item">
+            <strong>🔒 100% Riêng Tư</strong>
+            Không tải dữ liệu lên máy chủ nào
+          </div>
+          <div class="feature-item">
+            <strong>⚡ Cực Kỳ Nhanh</strong>
+            Hiển thị bằng Canvas & DOM cục bộ
+          </div>
+          <div class="feature-item">
+            <strong>📱 Tương Thích APK</strong>
+            Sẵn sàng đóng gói cài lên điện thoại
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Document Rendering Container -->
+    <div class="document-viewport" id="document-viewport">
+      <!-- Container for PDF Canvas -->
+      <div class="pdf-container" id="pdf-container" style="display: none;"></div>
+
+      <!-- Container for Word DOCX Preview -->
+      <div class="docx-container" id="docx-container" style="display: none;"></div>
+    </div>
+
+    <!-- Loading Spinner Overlay -->
+    <div class="loading-overlay hidden" id="loading-overlay">
+      <div class="spinner"></div>
+      <div class="loading-text" id="loading-text">Đang tải tài liệu...</div>
+    </div>
+
+  </main>
+
+  <!-- Floating Action Button for Mobile -->
+  <button class="fab-open" id="fab-open-file" title="Mở tệp mới" aria-label="Mở tệp mới">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="12" y1="5" x2="12" y2="19"></line>
+      <line x1="5" y1="12" x2="19" y2="12"></line>
+    </svg>
+  </button>
+
+  <!-- Mobile Bottom Floating Navigation Bar -->
+  <div class="mobile-nav-bar" id="mobile-nav-bar">
+    <button class="btn-icon" id="mob-prev-page" title="Trang trước" aria-label="Trang trước">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
+    </button>
+    <span id="mob-page-indicator" style="font-size: 0.85rem; font-weight: 600;">1 / 1</span>
+    <button class="btn-icon" id="mob-next-page" title="Trang sau" aria-label="Trang sau">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
+    </button>
+  </div>
+
+  <script src="assets/app.js"></script>
+</body>
+</html>

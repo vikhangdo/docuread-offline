@@ -1,0 +1,15 @@
+# Node dependencies
+node_modules/
+package-lock.json
+
+# Android Build artifacts
+.gradle/
+build/
+app/build/
+*.iml
+.idea/
+local.properties
+.DS_Store
+
+# Temporary files
+generate-samples.js
