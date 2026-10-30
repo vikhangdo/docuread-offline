@@ -60,24 +60,85 @@
       </div>
     </div>
 
-    <!-- Right Actions -->
+    <!-- Right Actions: 3-dots menu button -->
     <div class="header-actions">
-      <!-- Theme Switcher -->
-      <select class="theme-dropdown" id="theme-select" title="Đổi giao diện" aria-label="Chọn giao diện">
-        <option value="dark">🌙 Ban đêm</option>
-        <option value="light">☀️ Ban ngày</option>
-        <option value="sepia">📜 Giấy cổ</option>
-      </select>
-
-      <!-- Main Open File Button -->
-      <button class="btn-primary" id="open-file-btn" aria-label="Mở tệp tin">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+      <button class="btn-icon btn-menu" id="btn-more-menu" title="Tùy chọn đọc" aria-label="Tùy chọn đọc">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+          <circle cx="12" cy="5" r="2.2"></circle>
+          <circle cx="12" cy="12" r="2.2"></circle>
+          <circle cx="12" cy="19" r="2.2"></circle>
         </svg>
-        <span class="header-btn-text">Mở Tệp</span>
       </button>
     </div>
   </header>
+
+  <!-- Backdrop for 3-dots Menu -->
+  <div class="menu-backdrop hidden" id="menu-backdrop"></div>
+
+  <!-- 3-dots Settings Menu Popup -->
+  <div class="dropdown-menu hidden" id="more-dropdown">
+    <!-- Font Size Controls -->
+    <div class="menu-section">
+      <div class="menu-label">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="4 7 4 4 20 4 20 7"></polyline>
+          <line x1="9" y1="20" x2="15" y2="20"></line>
+          <line x1="12" y1="4" x2="12" y2="20"></line>
+        </svg>
+        <span>Kích thước chữ</span>
+      </div>
+      <div class="font-ctrl-row">
+        <button class="font-size-btn" id="btn-font-dec" title="Chữ nhỏ hơn" aria-label="Giảm kích thước chữ">A-</button>
+        <div class="font-scale-value" id="font-scale-display">85%</div>
+        <button class="font-size-btn" id="btn-font-inc" title="Chữ lớn hơn" aria-label="Tăng kích thước chữ">A+</button>
+      </div>
+      <div class="font-preset-row">
+        <button class="font-preset-btn" data-scale="0.75">Nhỏ</button>
+        <button class="font-preset-btn active" data-scale="0.85">Chuẩn</button>
+        <button class="font-preset-btn" data-scale="1.0">Lớn</button>
+        <button class="font-preset-btn" data-scale="1.2">Rất lớn</button>
+      </div>
+    </div>
+
+    <div class="menu-divider"></div>
+
+    <!-- Background Color Theme -->
+    <div class="menu-section">
+      <div class="menu-label">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <path d="M12 2a7 7 0 1 0 10 10"></path>
+        </svg>
+        <span>Màu nền đọc</span>
+      </div>
+      <div class="theme-options-grid">
+        <button class="theme-option-btn active" data-theme="sepia">
+          <span class="theme-dot dot-sepia"></span>
+          <span>Giấy cổ</span>
+        </button>
+        <button class="theme-option-btn" data-theme="dark">
+          <span class="theme-dot dot-dark"></span>
+          <span>Ban đêm</span>
+        </button>
+        <button class="theme-option-btn" data-theme="light">
+          <span class="theme-dot dot-light"></span>
+          <span>Ban ngày</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="menu-divider"></div>
+
+    <!-- Open Another File Action -->
+    <div class="menu-section">
+      <button class="menu-action-btn" id="btn-menu-open-file">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+        </svg>
+        <span>Chọn tệp khác...</span>
+      </button>
+    </div>
+  </div>
 
   <!-- Hidden Native File Input -->
   <input type="file" id="file-input" accept=".pdf,.docx,.doc,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" style="display: none;">
@@ -161,13 +222,7 @@
 
   </main>
 
-  <!-- Floating Action Button for Mobile -->
-  <button class="fab-open" id="fab-open-file" title="Mở tệp mới" aria-label="Mở tệp mới">
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-      <line x1="12" y1="5" x2="12" y2="19"></line>
-      <line x1="5" y1="12" x2="19" y2="12"></line>
-    </svg>
-  </button>
+
 
   <!-- Mobile Bottom Floating Navigation Bar -->
   <div class="mobile-nav-bar" id="mobile-nav-bar">

@@ -19,7 +19,8 @@ const state = {
   currentPage: 1,
   totalPages: 1,
   zoomScale: 1.0,
-  theme: 'dark', // 'dark' | 'light' | 'sepia'
+  theme: 'sepia',
+  fontScale: 0.85,
   pageRendering: false,
   pageNumPending: null,
 };
@@ -30,7 +31,9 @@ let docViewport, pdfContainer, docxContainer, docControls, mobileNavBar;
 let prevPageBtn, nextPageBtn, pageNumInput, pageCountSpan;
 let mobPrevPageBtn, mobNextPageBtn, mobPageIndicator;
 let zoomInBtn, zoomOutBtn, zoomResetBtn, zoomLevelSpan;
-let openFileBtn, fabOpenFileBtn, themeSelect, btnSampleDocx, btnSamplePdf, dropzone;
+let btnMoreMenu, moreDropdown, menuBackdrop;
+let btnFontDec, btnFontInc, fontScaleDisplay, btnMenuOpenFile;
+let btnSampleDocx, btnSamplePdf, dropzone;
 
 // Initialize Event Listeners
 function init() {
@@ -58,17 +61,17 @@ function init() {
   zoomResetBtn = document.getElementById('zoom-reset-btn');
   zoomLevelSpan = document.getElementById('zoom-level-span');
 
-  openFileBtn = document.getElementById('open-file-btn');
-  fabOpenFileBtn = document.getElementById('fab-open-file');
-  themeSelect = document.getElementById('theme-select');
+  btnMoreMenu = document.getElementById('btn-more-menu');
+  moreDropdown = document.getElementById('more-dropdown');
+  menuBackdrop = document.getElementById('menu-backdrop');
+  btnFontDec = document.getElementById('btn-font-dec');
+  btnFontInc = document.getElementById('btn-font-inc');
+  fontScaleDisplay = document.getElementById('font-scale-display');
+  btnMenuOpenFile = document.getElementById('btn-menu-open-file');
+
   btnSampleDocx = document.getElementById('btn-sample-docx');
   btnSamplePdf = document.getElementById('btn-sample-pdf');
   dropzone = document.getElementById('dropzone');
-
-  // Theme change
-  if (themeSelect) {
-    themeSelect.addEventListener('change', (e) => setTheme(e.target.value));
-  }
 
   // File Picker Trigger
   const triggerPicker = () => {
@@ -79,9 +82,57 @@ function init() {
     }
   };
 
-  if (openFileBtn) openFileBtn.addEventListener('click', triggerPicker);
-  if (fabOpenFileBtn) fabOpenFileBtn.addEventListener('click', triggerPicker);
+  if (btnMenuOpenFile) {
+    btnMenuOpenFile.addEventListener('click', () => {
+      toggleMenu(false);
+      triggerPicker();
+    });
+  }
   if (dropzone) dropzone.addEventListener('click', triggerPicker);
+
+  // 3-dots Menu Toggle
+  if (btnMoreMenu) {
+    btnMoreMenu.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleMenu();
+    });
+  }
+  if (menuBackdrop) {
+    menuBackdrop.addEventListener('click', () => toggleMenu(false));
+  }
+
+  // Font Scaling Handlers
+  if (btnFontDec) {
+    btnFontDec.addEventListener('click', () => setDocFontScale(state.fontScale - 0.1));
+  }
+  if (btnFontInc) {
+    btnFontInc.addEventListener('click', () => setDocFontScale(state.fontScale + 0.1));
+  }
+  document.querySelectorAll('.font-preset-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const scale = parseFloat(btn.getAttribute('data-scale'));
+      if (!isNaN(scale)) setDocFontScale(scale);
+    });
+  });
+
+  // Theme Switching Handlers
+  document.querySelectorAll('.theme-option-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const theme = btn.getAttribute('data-theme');
+      if (theme) setTheme(theme);
+    });
+  });
+
+  // Restore saved preferences
+  try {
+    const savedTheme = localStorage.getItem('docuread_theme') || 'sepia';
+    setTheme(savedTheme);
+    const savedScale = parseFloat(localStorage.getItem('docuread_font_scale')) || 0.85;
+    setDocFontScale(savedScale);
+  } catch (e) {
+    setTheme('sepia');
+    setDocFontScale(0.85);
+  }
 
   if (fileInput) {
     fileInput.addEventListener('change', (e) => {
@@ -171,6 +222,43 @@ function init() {
   setupAndroidBridge();
 }
 
+// Toggle 3-dots popup menu
+function toggleMenu(show) {
+  if (!moreDropdown || !menuBackdrop) return;
+  const shouldOpen = (show !== undefined) ? show : moreDropdown.classList.contains('hidden');
+  if (shouldOpen) {
+    moreDropdown.classList.remove('hidden');
+    menuBackdrop.classList.remove('hidden');
+  } else {
+    moreDropdown.classList.add('hidden');
+    menuBackdrop.classList.add('hidden');
+  }
+}
+
+// Adjust Document Font Scale
+function setDocFontScale(scale) {
+  const clamped = Math.min(Math.max(scale, 0.55), 1.5);
+  state.fontScale = Math.round(clamped * 100) / 100;
+  document.documentElement.style.setProperty('--doc-font-scale', state.fontScale);
+  
+  if (fontScaleDisplay) {
+    fontScaleDisplay.textContent = `${Math.round(state.fontScale * 100)}%`;
+  }
+  
+  document.querySelectorAll('.font-preset-btn').forEach(btn => {
+    const btnScale = parseFloat(btn.getAttribute('data-scale'));
+    if (Math.abs(btnScale - state.fontScale) < 0.05) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  });
+
+  try {
+    localStorage.setItem('docuread_font_scale', state.fontScale);
+  } catch (e) {}
+}
+
 // Change Theme
 function setTheme(theme) {
   document.body.classList.remove('theme-dark', 'theme-light', 'theme-sepia');
@@ -178,6 +266,18 @@ function setTheme(theme) {
     document.body.classList.add(`theme-${theme}`);
   }
   state.theme = theme;
+
+  document.querySelectorAll('.theme-option-btn').forEach(btn => {
+    if (btn.getAttribute('data-theme') === theme) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  });
+
+  try {
+    localStorage.setItem('docuread_theme', theme);
+  } catch (e) {}
 }
 
 // Show / Hide Loading
